@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate PDFs</title>
+</head>
+<body>
+
+    <h1>Generate PDFs</h1>
+
+    <!-- Form to upload PDF file -->
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label for="pdf_file">Upload PDF:</label>
+        <input type="file" name="pdf_file" id="pdf_file" required><br><br>
+
+        <!-- Display the number of PDFs (equal to number of rows) -->
+        <h3>Number of PDFs to generate: {{ numberofrow }}</h3>
+
+        <!-- Display a set of inputs for the number of rows (PDFs) -->
+        <div id="pdf_inputs"></div>
+
+        <button type="submit">Generate PDFs</button>
+    </form>
+
+    <script>
+        // Get the number of rows (PDFs) from the template context
+        var numberofrow = {{ numberofrow }};
+
+        // Get the container element to append the inputs
+        var container = document.getElementById("pdf_inputs");
+
+        // Loop through the number of rows and create input fields dynamically
+        for (var i = 1; i <= numberofrow; i++) {
+            var label = document.createElement("label");
+            label.setAttribute("for", "pdf_" + i);
+            label.innerText = "PDF " + i + ":";
+            
+            var input = document.createElement("input");
+            input.setAttribute("type", "file");
+            input.setAttribute("name", "pdf_" + i);
+            input.setAttribute("id", "pdf_" + i);
+
+            // Add the label and input field to the container
+            container.appendChild(label);
+            container.appendChild(input);
+            container.appendChild(document.createElement("br"));  // Add a line break
+            container.appendChild(document.createElement("br"));  // Add another line break
+        }
+    </script>
+
+</body>
+</html>

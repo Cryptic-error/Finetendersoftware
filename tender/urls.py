@@ -6,6 +6,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('pdfgenerator.urls')),  # Your app's URLs
+    path('templete2/', include('templete2.urls')),
 ]
 
 # Serve media files during development (only works in DEBUG mode)

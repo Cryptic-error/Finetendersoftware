@@ -38,7 +38,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'pdfgenerator'
+    'pdfgenerator',
+    'templete2',
+
 ]
 
 MIDDLEWARE = [

@@ -894,3 +894,218 @@ def generate_pdf_view(request):
     return render(request, 'pdfgenerator/forms.html', {'form': form})
 
 
+
+
+# code of table thats working 
+
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import inch
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import Paragraph, Table, TableStyle,Frame
+from io import BytesIO
+import os
+import pandas as pd
+from django.conf import settings
+from django.http import HttpResponse
+from reportlab.pdfgen import canvas
+from .forms import PDFForm
+from django.shortcuts import render
+
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+
+def generate_pdf_view(request):
+        
+    if request.method == 'POST':
+        form = PDFForm(request.POST, request.FILES)
+        if form.is_valid():
+            pdf_data = form.save()
+            buffer = BytesIO()
+            p = canvas.Canvas(buffer, pagesize=A4)
+            width, height = A4
+            styles = getSampleStyleSheet()
+            styles['BodyText'].fontSize = 12
+            styles['BodyText'].leading = 20
+            # words = rupee_format(pdf_data.amount)
+
+            if form.cleaned_data.get('include_table_data'):
+                
+                # BOQ page - rendering the Excel data
+                if pdf_data.excel:
+                    excel_path = os.path.join(settings.MEDIA_ROOT, pdf_data.excel.name)
+
+                data = pd.read_excel(excel_path, engine='openpyxl')
+                data_list = [data.columns.tolist()] + data.values.tolist()
+
+                # Prepare the table data with Paragraphs
+                table_data = []
+                for row in data_list:
+                    wrapped_row = [Paragraph(str(cell), styles["BodyText"]) for cell in row]
+                    table_data.append(wrapped_row)
+
+                # Set minimum column width
+                min_width = 50
+                available_width = 500
+                column_widths = []
+
+                # Calculate column widths based on the longest content in each column
+                for col in range(len(data.columns)):
+                    max_length = max(len(str(cell)) for cell in data.iloc[:, col])  # Find the max length in the column
+                    column_width = max(min_width, max_length * 4)  # 4 is a scaling factor, adjust as needed
+                    column_widths.append(column_width)
+
+                # Normalize the total width to fit the available space
+                total_width = sum(column_widths)
+                if total_width > available_width:
+                    scaling_factor = available_width / total_width
+                    column_widths = [width * scaling_factor for width in column_widths]
+
+                # Create and style the table
+                table = Table(table_data, colWidths=column_widths)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ]))
+
+                # Create the document with SimpleDocTemplate to handle page breaks
+                buffer = BytesIO()
+                doc = SimpleDocTemplate(buffer, pagesize=letter)
+
+                # List of content for the PDF, including the table and potential page breaks
+                story = []
+                story.append(table)
+
+                # Check if the content exceeds the page height and needs a page break
+                content_height = len(table_data) * 15  # Estimate height based on the number of rows
+                page_height = letter[1]  # Page height for letter-sized pages
+                if content_height > page_height:
+                    story.append(PageBreak())  # Insert a page break if content exceeds page height
+
+                doc.build(story)
+
+                # Return the PDF as a response6 
+                buffer.seek(0)
+        return HttpResponse(buffer, content_type='application/pdf', headers={'Content-Disposition': f'attachment; filename="{pdf_data.subject}.pdf"'})
+
+
+
+# table code that is working and just need to edit 
+def generate_quotation(request):
+    if request.method == 'POST':
+        quotation_form = quotationform(request.POST, request.FILES)
+        if quotation_form.is_valid():
+            pdf_data = quotation_form.save()
+            buffer = BytesIO()
+            styles = getSampleStyleSheet()
+            styles['BodyText'].fontSize = 12
+            styles['BodyText'].leading = 20
+            width, height = A4
+
+            # Prepare the content for the document
+            story = []
+
+            # Add letterhead
+            if pdf_data.letterhead:
+                letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+
+                def add_header_footer(canvas, doc):
+                    canvas.saveState()
+                    if pdf_data.letterhead:
+                        canvas.drawImage(letterhead_path, 40, height - 100, width=500, height=100)
+
+                    # Add heading
+                    canvas.setFont("Helvetica-Bold", 14)
+                    canvas.drawString(50, height - 120, "Price Schedule for Goods")
+                    
+                    # Add additional text fields
+                    # canvas.setFont("Helvetica", 12)
+                    # canvas.drawString(50, height - 140, f"Date: {pdf_data.created_at.strftime('%d-%m-%Y')}")
+                    # canvas.restoreState()
+
+            # Handle Excel table data
+            if pdf_data.excel:
+                excel_path = os.path.join(settings.MEDIA_ROOT, pdf_data.excel.name)
+                data = pd.read_excel(excel_path, engine='openpyxl')
+                data = data.where(pd.notnull(data), None)  # Handle NaN values
+                data_list = [data.columns.tolist()] + data.values.tolist()
+
+                # Prepare the table data with Paragraphs
+                table_data = [
+                    [Paragraph(str(cell) if cell else '', styles["BodyText"]) for cell in row]
+                    for row in data_list
+                ]
+
+                # Calculate column widths
+                min_width = 100
+                available_width = 500
+                column_widths = [max(min_width, len(str(cell)) * 4) for cell in data.columns]
+
+                # Normalize widths
+                total_width = sum(column_widths)
+                if total_width > available_width:
+                    scaling_factor = available_width / total_width
+                    column_widths = [width * scaling_factor for width in column_widths]
+
+                # Create the table
+                table = Table(table_data, colWidths=column_widths)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ]))
+                story.append(table)
+
+            # Add a spacer after the table
+            story.append(Spacer(1, 20))
+
+            # Add note
+            note_paragraph = Paragraph(
+                f"<b>Note:</b> {pdf_data.notes}", styles["BodyText"]
+            )
+            story.append(note_paragraph)
+
+            # Add a spacer before the signature
+            story.append(Spacer(1, 50))
+
+            # Add signature
+            if pdf_data.signature:
+                signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                story.append(Image(signature_path, width=150, height=50))
+                story.append(Paragraph("Authorized Signature", styles["BodyText"]))
+            else:
+                story.append(Paragraph("Authorized Signature: ______________________", styles["BodyText"]))
+
+            # Build the PDF
+            doc = SimpleDocTemplate(
+                buffer, pagesize=A4,
+                rightMargin=30, leftMargin=30,
+                topMargin=100, bottomMargin=30
+            )
+            doc.build(story, onFirstPage=add_header_footer, onLaterPages=add_header_footer)
+
+            # Return the PDF as a response
+            buffer.seek(0)
+            return HttpResponse(buffer, content_type='application/pdf', headers={'Content-Disposition': f'attachment; filename="finesurgical.pdf" '})
+        else:
+            quotation_form = quotationform(request.POST, request.FILES)
+
+    else:
+        quotation_form = quotationform()
+
+    return render(request, 'pdfgenerator/quotation.html', {'quotation_form': quotation_form})
