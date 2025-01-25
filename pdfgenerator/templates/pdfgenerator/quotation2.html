@@ -1,0 +1,22 @@
+{% extends 'pdfgenerator/basic.html' %}
+
+{% block body %}
+
+
+<body>
+    <h2>quotation</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ quotation_form.as_p }}
+        <button type="submit" formaction="{% url 'quotation2' %}">Generate quotation pdf</button>
+        <button type="submit" formaction="{% url 'upload' %}">upload pdfs</button>
+        <button type="submit" formaction="{% url 'quotation-word2' %}">generate_words</button>
+    </form>
+
+    {% if pdf_generated %}
+    <p><strong>PDF Generated Successfully!</strong></p>
+    <a href="{% url 'upload_pdf' quotation_id=1 %}">Proceed to Upload PDFs</a>
+    <a href="{% url 'quotation' %}">Proceed to Upload PDFs</a>
+{% endif %} 
+</body>
+{% endblock  %}

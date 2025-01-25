@@ -38,3 +38,7 @@ class pricescheduleform(forms.ModelForm):
         model = generatequotation
         fields = "__all__"
     
+# class quotationform(forms.ModelForm):
+#     class Meta:
+#         model = generatequotation
+#         fields = ['institution_name', 'excel']

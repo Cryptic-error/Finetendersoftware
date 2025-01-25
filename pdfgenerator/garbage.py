@@ -1109,3 +1109,260 @@ def generate_quotation(request):
         quotation_form = quotationform()
 
     return render(request, 'pdfgenerator/quotation.html', {'quotation_form': quotation_form})
+
+
+
+
+# testing code for Pdf merger 
+def upload_pdfs(request, quotation_id):
+    # Retrieve the quotation object
+    quotation = get_object_or_404(generatequotation, id=quotation_id)
+
+    # Read Excel file to get rows
+    excel_path = os.path.join(settings.MEDIA_ROOT, quotation.excel.name)
+    data = pd.read_excel(excel_path, engine='openpyxl')
+    rows = data.iloc[:, 0].tolist()  # Assuming the first column holds row titles
+    rows = rows[:-3]  # Exclude the last 3 rows if necessary
+
+    if request.method == 'POST':
+        # Retrieve uploaded files
+        financial_docs = request.FILES.get('financial_docs')
+        boq_docs = request.FILES.get('boq_docs')
+        vat_docs = request.FILES.get('vat_docs')  # VAT is mandatory
+
+        # Initialize uploaded files tracker
+        uploaded_files = []
+
+        # Save uploaded files
+        if financial_docs:
+            uploaded_files.append(UploadedFile.objects.create(
+                quotation=quotation,
+                file=financial_docs,
+                file_type='Financial Docs'
+            ))
+        if boq_docs:
+            uploaded_files.append(UploadedFile.objects.create(
+                quotation=quotation,
+                file=boq_docs,
+                file_type='BOQ'
+            ))
+        if vat_docs:
+            vat_instance = UploadedFile.objects.create(
+                quotation=quotation,
+                file=vat_docs,
+                file_type='VAT'
+            )
+            uploaded_files.append(vat_instance)
+
+        # Save uploaded PDFs for each row
+        for row in rows:
+            catalogue_file = request.FILES.get(f'catalogue_{row}')
+            ce_file = request.FILES.get(f'ce_{row}')
+            iso_file = request.FILES.get(f'iso_{row}')
+
+            if catalogue_file:
+                uploaded_files.append(UploadedFile.objects.create(
+                    quotation=quotation,
+                    file=catalogue_file,
+                    row_name=row,
+                    file_type='Catalogue'
+                ))
+            if ce_file:
+                uploaded_files.append(UploadedFile.objects.create(
+                    quotation=quotation,
+                    file=ce_file,
+                    row_name=row,
+                    file_type='CE'
+                ))
+            if iso_file:
+                uploaded_files.append(UploadedFile.objects.create(
+                    quotation=quotation,
+                    file=iso_file,
+                    row_name=row,
+                    file_type='ISO'
+                ))
+
+        # Merge all uploaded PDFs
+        merger = PdfMerger()
+        skipped_files = []
+
+        for uploaded_file in uploaded_files:
+            file_path = uploaded_file.file.path
+            try:
+                if os.path.exists(file_path):
+                    print(f"Adding to merger: {file_path}")
+                    merger.append(file_path)
+                else:
+                    skipped_files.append(file_path)
+                    print(f"File not found: {file_path}")
+            except Exception as e:
+                print(f"Error adding file {file_path}: {e}")
+                skipped_files.append(file_path)
+
+        # Add VAT document at the end if not already added
+        if vat_docs and vat_instance.file.path not in skipped_files:
+            merger.append(vat_instance.file.path)
+
+        # Save merged PDF
+        buffer = BytesIO()
+        merger.write(buffer)
+        merger.close()
+
+        merged_file = ContentFile(buffer.getvalue(), 'final_quotation.pdf')
+        quotation.merged_pdf.save('quotation_merged.pdf', merged_file)
+
+        # Prepare the response for download
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename=final_quotation.pdf'
+
+        # Log skipped files
+        if skipped_files:
+            print(f"Skipped files: {skipped_files}")
+
+        return response
+
+    return render(request, 'pdfgenerator/upload.html', {
+        'quotation': quotation,
+        'excel_data': rows
+    })
+
+
+
+
+# template code for document generation of tender 
+
+
+
+
+
+
+def upload(request):
+    if request.method == 'POST':
+        quotation_form = quotationform(request.POST, request.FILES)
+        if quotation_form.is_valid():
+            pdf_data = quotation_form.save()
+            # p = canvas.Canvas(buffer, pagesize=A4)
+            buffer = BytesIO()
+            styles = getSampleStyleSheet()
+            centered_heading_style = styles['Heading3']
+            centered_heading_style.alignment = TA_CENTER
+            styles['BodyText'].fontSize = 10
+            styles['BodyText'].leading = 20
+            width, height = A4
+
+            # Prepare the content for the document
+            story = []
+
+            # Function to add header/footer
+            def add_header_footer(canvas, doc):
+                canvas.saveState()
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    canvas.drawImage(letterhead_path, 40, height - 100, width=500, height=80)
+                canvas.restoreState()
+
+            address = f"""
+                To,<br/>
+                {pdf_data.designation or ""}<br/>
+                {pdf_data.institution_name or ""}<br/>
+                {pdf_data.address or ""}<br/>
+                
+        """
+            story.append(Paragraph(address, styles['BodyText']))
+
+            story.append(Paragraph(f"<u><b>subject </b></u>:{pdf_data.subject}", styles['Heading3']))
+            story.append(Paragraph(f"Dear sir/madam<br/>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; {pdf_data.paragraph}", styles['BodyText']))
+
+
+            # Handle Excel table data
+            if pdf_data.excel:
+                excel_path = os.path.join(settings.MEDIA_ROOT, pdf_data.excel.name)
+                data = pd.read_excel(excel_path, engine='openpyxl')
+                data = data.where(pd.notnull(data), None)  # Handle NaN values
+                data_list = [data.columns.tolist()] + data.values.tolist()
+                vats_amt = (pdf_data.amount*1.13)
+                vat_words = rupee_format(int(vats_amt))
+                words = rupee_format(int(pdf_data.amount))
+                print("Formatted Words:", words)
+                # Prepare the table data with Paragraphs
+                table_data = [
+                    [Paragraph(str(cell) if cell else '', styles["BodyText"]) for cell in row]
+                    for row in data_list
+                ]
+
+                # Calculate column widths
+                # Calculate column widths dynamically
+                column_widths = calculate_column_widths(data, font_name="Helvetica", font_size=10)
+
+                # Normalize widths to fit within the page
+                available_width = width - 60  # Account for page margins
+                total_width = sum(column_widths)
+                if total_width > available_width:
+                    scaling_factor = available_width / total_width
+                    column_widths = [w * scaling_factor for w in column_widths]
+
+                # Prepare table data
+                table_data = [
+                    [Paragraph(str(cell) if cell else '', styles["BodyText"]) for cell in row]
+                    for row in data_list
+                ]
+
+                # Create table
+                table = Table(table_data, colWidths=column_widths)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ]))
+                story.append(table)
+
+
+            # Add a spacer after the table
+            story.append(Spacer(1, 10))
+            story.append(Paragraph(f"In Words :{vat_words}"))
+            story.append(Paragraph(f"Notes*:{pdf_data.notes}"))
+
+            # Add signature section
+            story.append(Spacer(1, 20))
+            if pdf_data.signature:
+                signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                story.append(Image(signature_path, width=100, height=50, hAlign='LEFT'))
+
+                story.append(Paragraph("Authorized Signature", styles["BodyText"]))
+            else:
+                story.append(Paragraph("Authorized Signature: ______________________", styles["BodyText"]))
+
+            doc = SimpleDocTemplate(
+                buffer, pagesize=A4,
+                rightMargin=30, leftMargin=30,
+                topMargin=100, bottomMargin=30
+            )
+            doc.build(story, onFirstPage=add_header_footer, onLaterPages=add_header_footer)
+
+            # Return the PDF as a response
+            buffer.seek(0)
+    #         return HttpResponse(buffer, content_type='application/pdf', headers={'Content-Disposition': f'attachment; filename="finesurgical.pdf"'})
+
+    # else:
+    #     quotation_form = quotationform()
+
+    # return render(request, 'pdfgenerator/quotation.html', {'quotation_form': quotation_form})
+            response = HttpResponse(buffer, content_type='application/pdf', headers={'Content-Disposition': f'attachment; filename="finesurgical.pdf"'})
+            excel_path = os.path.join(settings.MEDIA_ROOT, pdf_data.excel.name)
+            excel_data = pd.read_excel(excel_path, engine='openpyxl')
+            rows = excel_data.value_counts()
+            return_data = {
+            'quotation_form': quotationform(),
+            'pdf_generated': True,
+            'excel_data': rows
+        }
+            print("Return Data:", return_data)
+            return render(response, 'pdfgenerator/quotation.html', return_data)
+    else:
+        quotation_form = quotationform()
+
+    return render(request, 'pdfgenerator/quotation.html', {'quotation_form': quotation_form})

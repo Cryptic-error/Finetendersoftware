@@ -1,12 +1,30 @@
-<!DOCTYPE html>
+{% extends  "pdfgenerator/basic.html"%}
 <html lang="en">
-<head>
+
+{% comment %} <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generate PDF</title>
-</head>
+</head> {% endcomment %}
+{% block body %}
 <body>
-    <h2>Generate PDF Document</h2>
+
+    <h2>Generate Document</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ pdfdata_form.as_p }}
+        <button type="submit" formaction="{% url 'generate_pdf' %}">Generate PDF of Content</button>
+        <button type="submit" formaction="{% url 'generate-word' %}">Generate Word of Content</button>
+    </form>
+
+    <a href="{% url 'priceschedule' %}">
+        <button type="button">Price Schedule</button>
+    </a>
+    
+    <a href="{% url 'quotation' %}">
+        <button type="button">Quotation</button>
+    </a>
+    {% comment %} <h2>Generate PDF Document</h2>
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {{ pdfdata_form.as_p }}
@@ -14,6 +32,7 @@
     </form>
 
     <a href={% url "priceschedule" %}><button>price schedule</button></a>
-    <a href={% url "quotation" %}><button>quotation</button></a>
+    <a href={% url "quotation" %}><button>quotation</button></a> {% endcomment %}
 </body>
+{% endblock %}
 </html>

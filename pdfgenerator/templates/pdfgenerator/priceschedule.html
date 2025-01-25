@@ -1,15 +1,23 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Generate PDF</title>
-</head>
+
+{% extends  "pdfgenerator/basic.html" %}
+
+{% block body %}
+
+
 <body>
-    <h2>priceschedule</h2>
+    <h2>price schedule</h2>
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {{ pricescheduleform_form.as_p }}
-        <button type="submit">price schedule</button>
+        <button type="submit" formaction="{% url 'priceschedule' %}">Generate priceschedule pdf</button>
+        <button type="submit" formaction="{% url 'upload' %}">upload pdfs</button>
+        {% comment %} <button type="submit" formaction="{% url 'generate-word' %}">generate_words</button> {% endcomment %}
     </form>
+
+    {% if pdf_generated %}
+    <p><strong>PDF Generated Successfully!</strong></p>
+    <a href="{% url 'upload_pdf' quotation_id=1 %}">Proceed to Upload PDFs</a>
+    <a href="{% url 'quotation' %}">Proceed to Upload PDFs</a>
+{% endif %} 
 </body>
-</html>
+{% endblock  %}

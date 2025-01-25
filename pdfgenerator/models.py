@@ -30,7 +30,7 @@ class generatequotation(models.Model):
     institution_name = models.CharField(max_length=200, blank=True)
     designation = models.CharField(max_length=200, blank=True)
     subject = models.CharField(max_length=200, blank=True)
-    # institutionname = models.CharField(max_length=200, blank=True)
+
     address = models.CharField(max_length=200, blank=True)
     paragraph =  models.CharField( max_length=1000,blank=True, default="We are pleased to present the pricing for the specified items in your upcoming tender for a lab setups . Here is  the estimate for your Products required ")
     notes = models.CharField(max_length=200, blank=True, default="Unit price shall include all custom duties and taxes, transportation cost tothe final destination and insurance cost.")
@@ -38,7 +38,7 @@ class generatequotation(models.Model):
     letterhead = models.ImageField(upload_to='letterheads/', blank=True, null=True)
     signature = models.ImageField(upload_to='signatures/', blank=True, null=True)
     excel = models.FileField(upload_to='signatures/', blank=True, null=True)
-    
+    merged_pdf = models.FileField(upload_to='merged_pdfs/', blank=True, null=True)
 
 class priceschedule(models.Model):
     institutionname = models.CharField(max_length=200, blank=True)
@@ -47,3 +47,19 @@ class priceschedule(models.Model):
     letterhead = models.ImageField(upload_to='letterheads/', blank=True, null=True)
     signature = models.ImageField(upload_to='signatures/', blank=True, null=True)
     excel = models.FileField(upload_to='signatures/', blank=True, null=True)
+
+
+class UploadedFile(models.Model):
+    FILE_TYPE_CHOICES = [
+        ('Financial Docs', 'Financial Docs'),
+        ('BOQ', 'BOQ'),
+        ('Catalogue', 'Catalogue'),
+        ('CE', 'CE'),
+        ('ISO', 'ISO'),
+        ('VAT', 'VAT')
+    ]
+    quotation = models.ForeignKey(generatequotation, on_delete=models.CASCADE)
+    file = models.FileField(upload_to='uploaded_pdfs/')
+    row_name = models.CharField(max_length=200, blank=True, null=True)
+    file_type = models.CharField(max_length=20, choices=FILE_TYPE_CHOICES)
+    uploaded_at = models.DateTimeField(auto_now_add=True)

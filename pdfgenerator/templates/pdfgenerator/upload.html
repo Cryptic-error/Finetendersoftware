@@ -1,0 +1,47 @@
+<h2>Upload PDFs for {{ quotation.institution_name }}</h2>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    
+    <h3>Top Section</h3>
+    <label>Financial Documents (PDF):</label>
+    <input type="file" name="financial_docs" accept="application/pdf">
+    <br><br>
+    
+    <label>BOQ (PDF):</label>
+    <input type="file" name="boq_docs" accept="application/pdf">
+    <br><br>
+    
+    <hr>
+    <h3>Row-wise Uploads (Catalogue, CE, ISO)</h3>
+    <table border="1">
+        <tr>
+            <th>Row Name</th>
+            <th>Catalogue PDF</th>
+            <th>CE PDF</th>
+            <th>ISO PDF</th>
+        </tr>
+        {% for row in excel_data %}
+        <tr>
+            <td>{{ row }}</td>
+            <td>
+                <input type="file" name="catalogue_{{ row }}" accept="application/pdf">
+            </td>
+            <td>
+                <input type="file" name="ce_{{ row }}" accept="application/pdf">
+            </td>
+            <td>
+                <input type="file" name="iso_{{ row }}" accept="application/pdf">
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    <br>
+    
+    <hr>
+    <h3>VAT Document (Always Required)</h3>
+    <label>VAT Document (PDF):</label>
+    <input type="file" name="vat_docs" accept="application/pdf" required>
+    
+    <br><br>
+    <button type="submit">Submit PDFs</button>
+</form>

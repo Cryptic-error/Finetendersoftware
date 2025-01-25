@@ -1,4 +1,5 @@
 
+from pyexpat.errors import messages
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
@@ -11,12 +12,24 @@ from django.conf import settings
 from django.http import HttpResponse
 from reportlab.pdfgen import canvas
 from .forms import PDFForm,quotationform,pricescheduleform
-from django.shortcuts import render
+from .models import *
+from django.shortcuts import get_object_or_404, render,redirect
 from reportlab.lib.enums import TA_JUSTIFY,TA_CENTER
 from reportlab.platypus import Spacer
 from reportlab.platypus import Image
 
+from django.core.files.base import ContentFile
+from PyPDF2 import PdfMerger
 
+from django.http import HttpResponse
+from django.shortcuts import render
+from docx import Document
+from docx.shared import Pt, Inches
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from io import BytesIO
+import pandas as pd
+import os
+from docx.shared import RGBColor
 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
@@ -24,6 +37,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.pdfbase.pdfmetrics import stringWidth
+
 
 def rupee_format_get_d(x_str):
     arr_1 = ["One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", ""]
@@ -195,7 +209,7 @@ def generate_pdf_view(request):
                 body_text = """
                     Dear Sir/Madam,<br/>
                     &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;This refers to you that related to above subject with respect to the procurement procedure of 
-                    the organization. We Fine Surgicals Nepal Pvt. Ltd. declare that we are eligible to participate 
+                    the organization. We Perina medical suppliers  declare that we are eligible to participate 
                     in the bidding process.<br/> We have no conflict of interest with Bidder with respect to the proposed 
                     bid procurement proceedings and have no pending Litigation with the bidder.<br/><br/>
                     Thank you, <br/> Sincerely yours,
@@ -252,7 +266,7 @@ def generate_pdf_view(request):
 
                 commitment_text = f"""
                     Dear Sir/Madam,<br/>
-                    &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;This refers to your Tender for <b>The Procurement of {pdf_data.subject}.</b> We, Fine Surgicals Nepal Pvt. Ltd., declare that we are eligible to participate 
+                    &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;This refers to your Tender for <b>The Procurement of {pdf_data.subject}.</b> We, Perina medical suppliers , declare that we are eligible to participate 
                     in the bidding process.if awarded for the tender we warrant that the Goods are new, unused &amp; of
                     the most recent or current models &amp; that they incorporate all recent improvements in design &amp; materials
                     unless provided otherwise in the Contract.<br/><br/>
@@ -319,7 +333,7 @@ def generate_pdf_view(request):
 
                 commitment_text = f"""
                     Dear Sir/Madam,<br/>
-                    &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;This refers to your tender for <b> The Procurement of {pdf_data.subject}</b>. We, Fine Surgicals Nepal Pvt. Ltd., declare that the offered equipment shall
+                    &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;This refers to your tender for <b> The Procurement of {pdf_data.subject}</b>. We, Perina medical suppliers , declare that the offered equipment shall
                     be brand new manufactured after placement of the order. <br/><br/>             
                     We shall also submit certification with the date of manufacture of the machine along with shipment
                     of the system..<br/><br/>
@@ -378,7 +392,7 @@ def generate_pdf_view(request):
 
                 commitment_text = f"""
                     Dear Sir/Madam,<br/>
-                    &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;This refers to your tender for <b> The Procurement of {pdf_data.subject}</b>. We, Fine Surgicals Nepal Pvt. Ltd., declare that We Fine Surgicals Nepal Pvt.Ltd., if we are awarded the
+                    &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;This refers to your tender for <b> The Procurement of {pdf_data.subject}</b>. We, Perina medical suppliers , declare that We Fine Surgicals Nepal Pvt.Ltd., if we are awarded the
                     contract, the Machine can be delivered within <b>{pdf_data.days} days</b> after conformation.<br/><br/>
                     Thank you, <br/> Sincerely yours,<br/>
                 """
@@ -437,7 +451,7 @@ def generate_pdf_view(request):
 
                 commitment_text = f"""
                     Dear Sir/Madam,<br/>
-                    &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;This refers to your tender for <b> The Procurement of {pdf_data.subject}</b>. We, Fine Surgicals Nepal Pvt. Ltd. If we are awarded the contract installation &amp;
+                    &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;This refers to your tender for <b> The Procurement of {pdf_data.subject}</b>. We, Perina medical suppliers  If we are awarded the contract installation &amp;
                      demonstration of the equipment shall be carried out by the trained engineers.<br/>They shall also impart training to the engineer, technicians &amp; users at site during Installation of the system.<br/>
                 Thank you, <br/> Sincerely yours<br/>
                 """
@@ -493,7 +507,7 @@ def generate_pdf_view(request):
 
                 commitment_text = f"""
                     Dear Sir/madam,<br/>
-                    &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;We, Fine Surgicals Nepal Pvt. Ltd. Here by to assign {pdf_data.proprietor_name} {pdf_data.ourdesignation} of this company to handle all tender and quotation related to <b> The Procurement of {pdf_data.subject}</b>.<br/> He is authorized to do all necessary documentation on our behalf and purpose.<br/> 
+                    &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;We, Perina medical suppliers  Here by to assign {pdf_data.proprietor_name} {pdf_data.ourdesignation} of this company to handle all tender and quotation related to <b> The Procurement of {pdf_data.subject}</b>.<br/> He is authorized to do all necessary documentation on our behalf and purpose.<br/> 
                   Thank you, <br/> Sincerely yours
                 """
                 elements.append(Paragraph(commitment_text, styles['BodyText']))
@@ -856,7 +870,7 @@ def generate_pdf_view(request):
                 p.setLineWidth(1)  # Set the line width if needed
                 p.line(40, line_y_position, width-300, line_y_position)
 
-                p.drawString(50, y_position - 20, "Duly authorized to sign the bid for & on behalf of: Fine Surgicals Nepal Pvt. Ltd.")
+                p.drawString(50, y_position - 20, "Duly authorized to sign the bid for & on behalf of: Perina medical suppliers ")
                 p.drawString(50, y_position - 40, f"Date:{pdf_data.date}")
                 p.showPage()
 
@@ -931,7 +945,7 @@ def generate_pdf_view(request):
                 p.setLineWidth(1)  # Set the line width if needed
                 p.line(40, line_y_position, width-300, line_y_position)
 
-                p.drawString(50, y_position - 20, "Duly authorized to sign the bid for & on behalf of: Fine Surgicals Nepal Pvt. Ltd.")
+                p.drawString(50, y_position - 20, "Duly authorized to sign the bid for & on behalf of: Perina medical suppliers ")
                 p.drawString(50, y_position - 40, f"Date:{pdf_data.date}")
                 p.showPage()
                 
@@ -948,6 +962,738 @@ def generate_pdf_view(request):
         pdfdata_form = PDFForm()
 
     return render(request, 'pdfgenerator/forms.html', {'pdfdata_form': pdfdata_form})
+
+
+def generate_word(request):
+    if request.method == 'POST':
+        pdfdata_form = PDFForm(request.POST, request.FILES)
+        if pdfdata_form.is_valid():
+            pdf_data = pdfdata_form.save()
+            document = Document()
+            document.sections[0].left_margin = Inches(1)
+            document.sections[0].top_margin = Inches(0.2)
+            document.sections[0].right_margin = Inches(0.5)
+            document.sections[0].bottom_margin = Inches(0.5)
+            # Helper function to validate and add image
+            def add_valid_picture(doc, path, width):
+                try:
+                    if os.path.exists(path):
+                        doc.add_picture(path, width=width)
+                    else:
+                        print(f"File not found: {path}")
+                except Exception as e:
+                    print(f"Error adding image: {e}")
+
+            # Self Declaration Letter
+            if pdfdata_form.cleaned_data.get('include_selfdeclarationletter'):
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    add_valid_picture(document, letterhead_path, width=Inches(7.0))
+
+                if pdf_data.date:
+                    date = pdf_data.date.strftime("%Y-%m-%d")
+                    # document.add_paragraph(f"Date: {date}\n{pdf_data.id_no}")
+                    subject_paragraph = document.add_paragraph()
+                    run = subject_paragraph.add_run(f"Date: {date}\n{pdf_data.id_no}")
+                    run.font.size = Pt(12)  # Adjust font size as needed
+                    run.font.bold = False
+                    run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                    subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+
+                if pdf_data.designation:
+                    document.add_paragraph(f"To,\n{pdf_data.designation}\n{pdf_data.institution_name}\n{pdf_data.address}")
+                else:
+                    document.add_paragraph(f"To,\n{pdf_data.institution_name}\n{pdf_data.address}")
+
+                # document.add_paragraph("\n<u><b>Self Declaration Letter</b></u>", style='Title')
+                subject_paragraph = document.add_paragraph()
+                run = subject_paragraph.add_run(f"self declaration letter")
+                run.font.size = Pt(14)  # Adjust font size as needed
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+                body_text = (
+                    "Dear Sir/Madam,\n\n"
+                    "This refers to you that related to the above subject with respect to the procurement procedure. "
+                    "We Sharvil Energy Pvt. Ltd. declare that we are eligible to participate in the bidding process."
+                    "We have no conflict of interest and no pending litigation.\n\nThank you,\n\nSincerely yours," 
+                )
+                document.add_paragraph(body_text)
+
+                if pdf_data.signature:
+                    signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                    add_valid_picture(document, signature_path, width=Inches(2.0))
+                    document.add_paragraph(f"_________________________\n{pdf_data.proprietor_name}\n{pdf_data.ourdesignation}")
+
+                # if pdf_data.footer:
+                #     footer_path = os.path.join(settings.MEDIA_ROOT, pdf_data.footer.name)
+                #     add_valid_picture(document, footer_path, width=Inches(6.0))
+
+                # Add a page break after the self-declaration letter
+                document.add_page_break()
+
+            # Warranty Letter
+            if pdfdata_form.cleaned_data.get('include_warrantyletter'):
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    add_valid_picture(document, letterhead_path, width=Inches(7.0))
+
+                if pdf_data.date:
+                    date = pdf_data.date.strftime("%Y-%m-%d")
+                    # document.add_paragraph(f"Date: {date}\n{pdf_data.id_no}")
+                    subject_paragraph = document.add_paragraph()
+                    run = subject_paragraph.add_run(f"Date: {date}\n{pdf_data.id_no}")
+                    run.font.size = Pt(12)  # Adjust font size as needed
+                    run.font.bold = False
+                    run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                    subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+
+                if pdf_data.designation:
+                    document.add_paragraph(f"To,\n{pdf_data.designation}\n{pdf_data.institution_name}\n{pdf_data.address}")
+                else:
+                    document.add_paragraph(f"To,\n{pdf_data.institution_name}\n{pdf_data.address}")
+
+                subject_paragraph = document.add_paragraph()
+                run = subject_paragraph.add_run(f"Warranty/Commitment Letter")
+                run.font.size = Pt(14)  # Adjust font size as needed
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+                body_text = (
+                    f"Dear Sir/Madam,\n"
+                    f"This refers to your Tender for <b>The Procurement of {pdf_data.subject}.</b> We, Perina medical suppliers , declare that we are eligible to participate "
+                    f"in the bidding process. If awarded for the tender, we warrant that the Goods are new, unused & of "
+                    f"the most recent or current models and that they incorporate all recent improvements in design and materials "
+                    f"unless provided otherwise in the Contract.\n\n"
+                    f"We further warrant that the Goods shall be free from defects arising from any act or commission of us or "
+                    f"arising from design, materials and workmanship under normal use in the conditions prevailing in the country "
+                    f"of final destination.\n\n"
+                    f"The comprehensive warranty and service warranty for the offered product shall remain valid for the required "
+                    f"periods after the Goods or any portion thereof, as the case may be, have been delivered to and accepted at the "
+                    f"final destination.\n\n"
+                    f"We further ensure that during the warranty period, we will provide Preventive Maintenance (PPM) along "
+                    f"with corrective/breakdown maintenance whenever required.\n\n"
+                    f"Thank you,\nSincerely yours,\n"
+                )
+                document.add_paragraph(body_text)
+
+                if pdf_data.signature:
+                    signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                    add_valid_picture(document, signature_path, width=Inches(2.0))
+                    document.add_paragraph(f"________________________\n{pdf_data.proprietor_name}\n{pdf_data.ourdesignation}")
+
+                # if pdf_data.footer:
+                #     footer_path = os.path.join(settings.MEDIA_ROOT, pdf_data.footer.name)
+                #     add_valid_picture(document, footer_path, width=Inches(7.0))
+                document.add_page_break()
+
+            if pdfdata_form.cleaned_data.get('include_manufactureletter'):
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    add_valid_picture(document, letterhead_path, width=Inches(7.0))
+
+                if pdf_data.date:
+                    date = pdf_data.date.strftime("%Y-%m-%d")
+                    # document.add_paragraph(f"Date: {date}\n{pdf_data.id_no}")
+                    subject_paragraph = document.add_paragraph()
+                    run = subject_paragraph.add_run(f"Date: {date}\n{pdf_data.id_no}")
+                    run.font.size = Pt(12)  # Adjust font size as needed
+                    run.font.bold = False
+                    run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                    subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+
+                if pdf_data.designation:
+                    document.add_paragraph(f"To,\n{pdf_data.designation}\n{pdf_data.institution_name}\n{pdf_data.address}")
+                else:
+                    document.add_paragraph(f"To,\n{pdf_data.institution_name}\n{pdf_data.address}")
+
+                subject_paragraph = document.add_paragraph()
+                run = subject_paragraph.add_run(f"self declaration letter")
+                run.font.size = Pt(14)  # Adjust font size as needed
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+                body_text = (
+                    f"Dear Sir/Madam,\n"
+                    f"This refers to your Tender for <b>The Procurement of {pdf_data.subject}.</b> We, Perina medical suppliers , declare that we are eligible to participate "
+                    f"in the bidding process. If awarded for the tender, we warrant that the Goods are new, unused & of "
+                    f"the most recent or current models and that they incorporate all recent improvements in design and materials "
+                    f"unless provided otherwise in the Contract.\n\n"
+                    f"We further warrant that the Goods shall be free from defects arising from any act or commission of us or "
+                    f"arising from design, materials and workmanship under normal use in the conditions prevailing in the country "
+                    f"of final destination.\n\n"
+                    f"The comprehensive warranty and service warranty for the offered product shall remain valid for the required "
+                    f"periods after the Goods or any portion thereof, as the case may be, have been delivered to and accepted at the "
+                    f"final destination.\n\n"
+                    f"We further ensure that during the warranty period, we will provide Preventive Maintenance (PPM) along "
+                    f"with corrective/breakdown maintenance whenever required.\n\n"
+                    f"Thank you,\nSincerely yours,\n"
+                )
+                document.add_paragraph(body_text)
+
+                if pdf_data.signature:
+                    signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                    add_valid_picture(document, signature_path, width=Inches(2.0))
+                    document.add_paragraph(f"________________________\n{pdf_data.proprietor_name}\n{pdf_data.ourdesignation}")
+
+                document.add_page_break()
+
+
+            if pdfdata_form.cleaned_data.get('include_manufactureletter'):
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    add_valid_picture(document, letterhead_path, width=Inches(7.0))
+
+                if pdf_data.date:
+                    date = pdf_data.date.strftime("%Y-%m-%d")
+                    # document.add_paragraph(f"Date: {date}\n{pdf_data.id_no}")
+                    subject_paragraph = document.add_paragraph()
+                    run = subject_paragraph.add_run(f"Date: {date}\n{pdf_data.id_no}")
+                    run.font.size = Pt(12)  # Adjust font size as needed
+                    run.font.bold = False
+                    run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                    subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+
+                if pdf_data.designation:
+                    document.add_paragraph(f"To,\n{pdf_data.designation}\n{pdf_data.institution_name}\n{pdf_data.address}")
+                else:
+                    document.add_paragraph(f"To,\n{pdf_data.institution_name}\n{pdf_data.address}")
+
+                subject_paragraph = document.add_paragraph()
+                run = subject_paragraph.add_run(f"Date of Manufacture and Brand New Machine")
+                run.font.size = Pt(14)  # Adjust font size as needed
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+                body_text = (
+                    "Dear Sir/Madam,\n\n"
+                    f"        This refers to your tender for **The Procurement of {pdf_data.subject}**. We, Sharvil Energy Pvt. Ltd., "
+                    "declare that the offered equipment shall be brand new, manufactured after the placement of the order.\n\n"
+                    "We shall also submit certification with the date of manufacture of the machine along with the shipment "
+                    "of the system.\n\n"
+                    "Thank you,\nSincerely yours,\n"
+                )
+
+                document.add_paragraph(body_text)
+
+                if pdf_data.signature:
+                    signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                    add_valid_picture(document, signature_path, width=Inches(2.0))
+                    document.add_paragraph(f"________________________\n{pdf_data.proprietor_name}\n{pdf_data.ourdesignation}")
+
+                # if pdf_data.footer:
+                #     footer_path = os.path.join(settings.MEDIA_ROOT, pdf_data.footer.name)
+                #     add_valid_picture(document, footer_path, width=Inches(6.0))
+
+                document.add_page_break()
+
+
+
+            if pdfdata_form.cleaned_data.get('include_deliverycommitmentletter'):
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    add_valid_picture(document, letterhead_path, width=Inches(7.0))
+
+                if pdf_data.date:
+                    date = pdf_data.date.strftime("%Y-%m-%d")
+                    # document.add_paragraph(f"Date: {date}\n{pdf_data.id_no}")
+                    subject_paragraph = document.add_paragraph()
+                    run = subject_paragraph.add_run(f"Date: {date}\n{pdf_data.id_no}")
+                    run.font.size = Pt(12)  # Adjust font size as needed
+                    run.font.bold = False
+                    run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                    subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+
+                if pdf_data.designation:
+                    document.add_paragraph(f"To,\n{pdf_data.designation}\n{pdf_data.institution_name}\n{pdf_data.address}")
+                else:
+                    document.add_paragraph(f"To,\n{pdf_data.institution_name}\n{pdf_data.address}")
+
+                subject_paragraph = document.add_paragraph()
+                run = subject_paragraph.add_run(f"Delivery commitment letter")
+                run.font.size = Pt(14)  # Adjust font size as needed
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+                body_text = (
+                    "Dear Sir/Madam,\n\n"
+                    f"        This refers to your tender for **The Procurement of {pdf_data.subject}**. "
+                    "We, Sharvil Energy Pvt. Ltd., declare that if we are awarded the "
+                    f"contract, the Machine can be delivered within **{pdf_data.days} days** after confirmation.\n\n"
+                    "Thank you,\nSincerely yours,\n"
+                )
+
+                document.add_paragraph(body_text)
+                
+                if pdf_data.signature:
+                    signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                    add_valid_picture(document, signature_path, width=Inches(2.0))
+                    document.add_paragraph(f"________________________\n{pdf_data.proprietor_name}\n{pdf_data.ourdesignation}")
+                # if pdf_data.footer:
+                #     footer_path = os.path.join(settings.MEDIA_ROOT, pdf_data.footer.name)
+                #     add_valid_picture(document, footer_path, width=Inches(6.0))
+                document.add_page_break()
+
+
+            if pdfdata_form.cleaned_data.get('include_installationletter'):
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    add_valid_picture(document, letterhead_path, width=Inches(7.0))
+
+                if pdf_data.date:
+                    date = pdf_data.date.strftime("%Y-%m-%d")
+                    # document.add_paragraph(f"Date: {date}\n{pdf_data.id_no}")
+                    subject_paragraph = document.add_paragraph()
+                    run = subject_paragraph.add_run(f"Date: {date}\n{pdf_data.id_no}")
+                    run.font.size = Pt(12)  # Adjust font size as needed
+                    run.font.bold = False
+                    run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                    subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+
+                if pdf_data.designation:
+                    document.add_paragraph(f"To,\n{pdf_data.designation}\n{pdf_data.institution_name}\n{pdf_data.address}")
+                else:
+                    document.add_paragraph(f"To,\n{pdf_data.institution_name}\n{pdf_data.address}")
+
+                subject_paragraph = document.add_paragraph()
+                run = subject_paragraph.add_run(f"Installation Demonstration And Training")
+                run.font.size = Pt(14)  # Adjust font size as needed
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+                body_text = (
+                    f"Dear Sir/Madam,\n\n"
+                    f"        This refers to your tender for **The Procurement of {pdf_data.subject}**. "
+                    "We, Sharvil Energy Pvt. Ltd., declare that if we are awarded the contract, "
+                    "the installation and demonstration of the equipment shall be carried out by trained engineers.\n"
+                    "They shall also impart training to the engineers, technicians, and users at the site during the installation of the system.\n\n"
+                    "Thank you,\nSincerely yours\n"
+)
+                document.add_paragraph(body_text)
+
+                if pdf_data.signature:
+                    signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                    add_valid_picture(document, signature_path, width=Inches(2.0))
+                    document.add_paragraph(f"________________________\n{pdf_data.proprietor_name}\n{pdf_data.ourdesignation}")
+                # if pdf_data.footer:
+                #     footer_path = os.path.join(settings.MEDIA_ROOT, pdf_data.footer.name)
+                #     add_valid_picture(document, footer_path, width=Inches(6.0))
+
+                document.add_page_break()
+
+
+
+            if pdfdata_form.cleaned_data.get('include_attorneyletter'):
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    add_valid_picture(document, letterhead_path, width=Inches(7.0))
+
+                if pdf_data.date:
+                    date = pdf_data.date.strftime("%Y-%m-%d")
+                    # document.add_paragraph(f"Date: {date}\n{pdf_data.id_no}")
+                    subject_paragraph = document.add_paragraph()
+                    run = subject_paragraph.add_run(f"Date: {date}\n{pdf_data.id_no}")
+                    run.font.size = Pt(12)  # Adjust font size as needed
+                    run.font.bold = False
+                    run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                    subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+
+                if pdf_data.designation:
+                    document.add_paragraph(f"To,\n{pdf_data.designation}\n{pdf_data.institution_name}\n{pdf_data.address}")
+                else:
+                    document.add_paragraph(f"To,\n{pdf_data.institution_name}\n{pdf_data.address}")
+
+                subject_paragraph = document.add_paragraph()
+                run = subject_paragraph.add_run(f"Power of attorney")
+                run.font.size = Pt(14)  # Adjust font size as needed
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+                body_text = (
+                    f"Dear Sir/Madam,\n\n"
+                    f"        We, Sharvil Energy Pvt. Ltd., hereby assign {pdf_data.proprietor_name}, {pdf_data.ourdesignation} of this company, "
+                    f"to handle all tenders and quotations related to **The Procurement of {pdf_data.subject}**.\n"
+                    "He is authorized to do all necessary documentation on our behalf and purpose.\n\n"
+                    "Thank you,\nSincerely yours\n"
+                )
+
+                document.add_paragraph(body_text)
+
+                if pdf_data.attornitysign:
+                    attornitysign_path = os.path.join(settings.MEDIA_ROOT, pdf_data.attornitysign.name)
+                    add_valid_picture(document, attornitysign_path, width=Inches(2.0))
+                    document.add_paragraph(f"________________________\n{pdf_data.attornity_name}\n{pdf_data.attornity_designation}")
+                # if pdf_data.footer:
+                #     footer_path = os.path.join(settings.MEDIA_ROOT, pdf_data.footer.name)
+                #     add_valid_picture(document, footer_path, width=Inches(6.0))
+                document.add_page_break()
+
+
+
+            if pdfdata_form.cleaned_data.get('include_bidsubmissionform'):
+
+                words = rupee_format(int(pdf_data.amount))
+                print("Formatted Words:", words)
+
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    add_valid_picture(document, letterhead_path, width=Inches(7.0))
+
+                if pdf_data.date:
+                    date = pdf_data.date.strftime("%Y-%m-%d")
+                    # document.add_paragraph(f"Date: {date}\n{pdf_data.id_no}")
+                    subject_paragraph = document.add_paragraph()
+                    run = subject_paragraph.add_run(f"Date: {date}\n{pdf_data.id_no}")
+                    run.font.size = Pt(12)  # Adjust font size as needed
+                    run.font.bold = False
+                    run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                    subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+
+                if pdf_data.designation:
+                    document.add_paragraph(f"To,\n{pdf_data.designation}\n{pdf_data.institution_name}\n{pdf_data.address}")
+                else:
+                    document.add_paragraph(f"To,\n{pdf_data.institution_name}\n{pdf_data.address}")
+
+                subject_paragraph = document.add_paragraph()
+                run = subject_paragraph.add_run(f"Bid submission Forms")
+                run.font.size = Pt(14)  # Adjust font size as needed
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+                body_text = (
+                    f"We, the undersigned, declare that:\n\n"
+                    "(a) We have examined and have no reservations to the Bidding Documents, including Addenda No.: No addenda.\n\n"
+                    "(b) We offer to supply in conformity with the Bidding Documents and in accordance with the Delivery Schedules "
+                    f"specified in the Schedule of Requirements the following Goods and related Services: {pdf_data.subject}. "
+                    f"The total price of our Bid, excluding any discounts offered in item (c) below, is: {words} (Nrs) excluding Tax and VAT.\n\n"
+                    "(c) The discounts offered and the methodology for their application are: Not applicable.\n\n"
+                    f"(d) Our bid shall be valid for the period of {pdf_data.bidvaliditydays} days from the date fixed for the bid submission deadline in "
+                    "accordance with the Bidding Document, and it shall remain binding upon us and may be accepted at any time "
+                    "before the expiration of that period.\n\n"
+                    "(e) If our Bid is accepted, we commit to obtain a Performance Security in the amount specified in ITB 41 for "
+                    "the due performance of the Contract.\n\n"
+                    "(f) We are not participating, as Bidders, in more than one Bid in this bidding process, other than alternative "
+                    "offers in accordance with the Bidding Document.\n\n"
+                )
+
+                document.add_paragraph(body_text)
+
+                # if pdf_data.signature:
+                #     signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                #     add_valid_picture(document, signature_path, width=Inches(2.0))
+                #     document.add_paragraph(f"________________________\n{pdf_data.proprietor_name}\n{pdf_data.ourdesignation}")
+                # if pdf_data.footer:
+                #     footer_path = os.path.join(settings.MEDIA_ROOT, pdf_data.footer.name)
+                #     add_valid_picture(document, footer_path, width=Inches(6.0))
+                document.add_page_break()
+
+            if pdfdata_form.cleaned_data.get('include_bidsubmissionform'):
+
+                words = rupee_format(int(pdf_data.amount))
+                print("Formatted Words:", words)
+
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    add_valid_picture(document, letterhead_path, width=Inches(7.0))
+
+
+                body_text = (
+                "(g) The following commissions, gratuities, or fees, if any, have been paid or are to be paid with respect to the "
+                "bidding process or execution of the Contract:\n\n"
+                "Name of Recipient                  Address                    Reason                  Amount\n"
+                "------------------------------------------------------------------------------------------\n"
+                "                                                NONE\n\n"
+                "(h) We understand that this bid, together with your written acceptance thereof included in your notification of "
+                "award shall constitute a binding contract between us, until a formal contract is prepared and executed.\n\n"
+                "(i) We understand that you are not bound to accept the lowest evaluated bid or any other bid that you may "
+                "receive.\n\n"
+                "(j) We declare that we have not been blacklisted as per ITB 3.4 and that there is no conflict of interest in the proposed "
+                "procurement proceedings. We further declare that we have not been punished for any offence relating to the "
+                "concerned profession or business.\n\n"
+                "(k) We agree to permit GoN/DP or its representative to inspect our accounts, records, and other documents "
+                "relating to the bid submission and to have them audited by auditors appointed by the GoN/DP.\n\n"
+            )
+
+                document.add_paragraph(body_text)
+
+                if pdf_data.signature:
+                    signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                    add_valid_picture(document, signature_path, width=Inches(2.0))
+                    document.add_paragraph(f"________________________\n{pdf_data.proprietor_name}\n{pdf_data.ourdesignation}")
+                document.add_page_break()
+
+            if pdfdata_form.cleaned_data.get('include_technicalbid'):
+
+                words = rupee_format(int(pdf_data.amount))
+                print("Formatted Words:", words)
+
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    add_valid_picture(document, letterhead_path, width=Inches(7.0))
+
+                if pdf_data.date:
+                    date = pdf_data.date.strftime("%Y-%m-%d")
+                    # document.add_paragraph(f"Date: {date}\n{pdf_data.id_no}")
+                    subject_paragraph = document.add_paragraph()
+                    run = subject_paragraph.add_run(f"Date: {date}\n{pdf_data.id_no}")
+                    run.font.size = Pt(12)  # Adjust font size as needed
+                    run.font.bold = False
+                    run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                    subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+
+                if pdf_data.designation:
+                    document.add_paragraph(f"To,\n{pdf_data.designation}\n{pdf_data.institution_name}\n{pdf_data.address}")
+                else:
+                    document.add_paragraph(f"To,\n{pdf_data.institution_name}\n{pdf_data.address}")
+
+                subject_paragraph = document.add_paragraph()
+                run = subject_paragraph.add_run(f"Letter of Technical Bid")
+                run.font.size = Pt(14)  # Adjust font size as needed
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+                body_text = (
+                    "(a) We have examined and have no reservations to the Bidding Document, including Addenda issued in "
+                    "accordance with Instructions to Bidders (ITB) Clause 9.\n\n"
+                    f"(b) We offer to supply in conformity with the Bidding Document and in accordance with the delivery "
+                    "schedule specified in Section V (Schedule of Requirements), the following Goods and Related "
+                    f"Services: The Procurement of {pdf_data.subject}.\n\n"
+                    "(c) Our Bid consisting of the Technical Bid and the Price Bid shall be valid for a period of 90 days from the "
+                    "date fixed for the bid submission deadline in accordance with the Bidding Document, and it shall "
+                    "remain binding upon us and may be accepted at any time before the expiration of that period.\n\n"
+                    "(d) Our firm, including any subcontractors or suppliers for any part of the Contract, has nationalities from "
+                    "eligible countries in accordance with ITB 4.8 and meets the requirements of ITB 3.4 and 3.5.\n\n"
+                    "(e) We are not participating, as a Bidder or as a subcontractor/supplier, in more than one Bid in this bidding "
+                    "process in accordance with ITB 4.3(e), other than alternative Bids in accordance with ITB 14.\n\n"
+                    "(f) Our firm, its affiliates or subsidiaries, including any Subcontractors or Suppliers for any part of the "
+                    "contract, has not been declared ineligible by DP, under the Purchaser’s country laws or official "
+                    "regulations or by an act of compliance with a decision of the United Nations Security Council.\n\n"
+                )
+
+                document.add_paragraph(body_text)
+
+                # if pdf_data.signature:
+                #     signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                #     add_valid_picture(document, signature_path, width=Inches(2.0))
+                #     document.add_paragraph(f"________________________\n{pdf_data.proprietor_name}\n{pdf_data.ourdesignation}")
+                # if pdf_data.footer:
+                #     footer_path = os.path.join(settings.MEDIA_ROOT, pdf_data.footer.name)
+                #     add_valid_picture(document, footer_path, width=Inches(6.0))
+                document.add_page_break()
+
+            if pdfdata_form.cleaned_data.get('include_technicalbid'):
+
+                words = rupee_format(int(pdf_data.amount))
+                print("Formatted Words:", words)
+
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    add_valid_picture(document, letterhead_path, width=Inches(7.0))
+
+
+                body_text = (
+                    "(g) We are not a government-owned entity / we are a government-owned entity but meet the requirements of "
+                    "ITB 4.5.\n\n"
+                    "(h) We declare that we, including any subcontractors or suppliers for any part of the contract, do not have "
+                    "any conflict of interest in accordance with ITB 4.3 and have not been punished for an offense "
+                    "relating to the concerned profession or business.\n\n"
+                    "(i) The following commissions, gratuities, or fees, if any, have been paid or are to be paid with respect to the "
+                    "bidding process or execution of the contract:\n\n"
+                    "Name of Recipient                 Address                        Reason                              Amount\n"
+                    "------------------------------------------------------------------------------------------------------------\n"
+                    "                                                    NONE\n\n"
+                    "(j) We declare that we are solely responsible for the authenticity of the documents submitted by us. The "
+                    "documents and information submitted are true and correct. If any document or information is "
+                    "found to be concealed or misrepresented at a later date, we shall accept any legal action by the purchaser.\n\n"
+                    "(k) We agree to permit GoN/DP or its representative to inspect our accounts, records, and other "
+                    "documents relating to the bid submission, and to have them audited by auditors appointed by the "
+                    "GoN/DP.\n\n"
+                    "Thank you,\nSincerely yours"
+                )
+
+                document.add_paragraph(body_text)
+
+                if pdf_data.signature:
+                    signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                    add_valid_picture(document, signature_path, width=Inches(2.0))
+                    document.add_paragraph(f"________________________\n{pdf_data.proprietor_name}\n{pdf_data.ourdesignation}")
+
+                document.add_page_break()
+
+            if pdfdata_form.cleaned_data.get('include_pricebid'):
+                vats_amt = "{:,.2f}".format(pdf_data.amount * 1.13)
+                vat_words = rupee_format(int(float(vats_amt.replace(',', ''))))
+                print("Formatted Words:change", vat_words)
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    add_valid_picture(document, letterhead_path, width=Inches(7.0))
+
+                if pdf_data.date:
+                    date = pdf_data.date.strftime("%Y-%m-%d")
+                    # document.add_paragraph(f"Date: {date}\n{pdf_data.id_no}")
+                    subject_paragraph = document.add_paragraph()
+                    run = subject_paragraph.add_run(f"Date: {date}\n{pdf_data.id_no}")
+                    run.font.size = Pt(12)  # Adjust font size as needed
+                    run.font.bold = False
+                    run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                    subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+
+                if pdf_data.designation:
+                    document.add_paragraph(f"To,\n{pdf_data.designation}\n{pdf_data.institution_name}\n{pdf_data.address}")
+                else:
+                    document.add_paragraph(f"To,\n{pdf_data.institution_name}\n{pdf_data.address}")
+
+                subject_paragraph = document.add_paragraph()
+                run = subject_paragraph.add_run(f"Letter of Price Bid")
+                run.font.size = Pt(14)  # Adjust font size as needed
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+                body_text = (
+                    "(a) We have examined and have no reservations to the Bidding Document, including Addenda issued in "
+                    "accordance with Instructions to Bidders (ITB) Clause 9.\n\n"
+                    f"(b) We offer to supply in conformity with the Bidding Document and in accordance with the delivery "
+                    f"schedule specified in Section V (Schedule of Requirements), the following Goods and Related "
+                    f"Services: The Procurement of {pdf_data.subject}.\n\n"
+                    f"(c) The total price of our Bid, excluding any discounts offered in item (d) below, is: {vats_amt} "
+                    f"(In Words {vat_words}).\n\n"
+                    "(d) The discounts offered and the methodology for their application are:\n"
+                    "- The discounts offered are NONE\n"
+                    "- The exact method of calculations to determine the net price after application of discounts is shown below: NONE\n\n"
+                    f"(e) Our bid shall be valid for a period of {pdf_data.bidvaliditydays} days from the date fixed for the bid submission deadline "
+                    "in accordance with the Bidding Documents, and it shall remain binding upon us and may be accepted at any time "
+                    "before the expiration of that period.\n\n"
+                    "(f) If our bid is accepted, we commit to obtain a performance security in accordance with the Bidding Document.\n\n"
+                )
+
+                document.add_paragraph(body_text)
+
+                
+                document.add_page_break()
+
+
+            if pdfdata_form.cleaned_data.get('include_pricebid'):
+
+                words = rupee_format(int(pdf_data.amount))
+                print("Formatted Words:", words)
+
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    add_valid_picture(document, letterhead_path, width=Inches(7.0))
+
+
+                body_text = (
+                    f"(g) We understand that this bid, together with your written acceptance thereof included in your notification of award, shall constitute a binding contract between us, until a formal contract is prepared and executed.\n\n"
+                    f"(h) We understand that you are not bound to accept the lowest evaluated bid or any other bid that you may receive. \n\n"
+                    f"(i) We agree to permit the Employer/DP 1 or its representative to inspect our accounts and records and other documents relating to the bid submission and to have them audited by auditors 2 appointed by the Employer. \n\n"
+                    f"(j) We confirm and stand by our commitments and other declarations made in connection with the submission of our Letter of Technical Bid.\n\n"
+                )
+                document.add_paragraph(body_text)
+
+                # Add bidder information
+                document.add_paragraph(f"Name: {pdf_data.proprietor_name}")
+                document.add_paragraph(f"In the capacity of: {pdf_data.ourdesignation}")
+                document.add_paragraph("Signed")
+
+                # Add signature if available
+                if pdf_data.signature:
+                    signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                    document.add_picture(signature_path, width=Pt(150))
+
+                # Add company information
+                document.add_paragraph("Duly authorized to sign the bid for & on behalf of: Perina medical suppliers ")
+                document.add_paragraph(f"Date: {pdf_data.date}")
+
+
+               
+
+                document.add_page_break()
+
+
+            if pdfdata_form.cleaned_data.get('include_quotationandprice'):
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    add_valid_picture(document, letterhead_path, width=Inches(7.0))
+
+                if pdf_data.date:
+                    date = pdf_data.date.strftime("%Y-%m-%d")
+                    # document.add_paragraph(f"Date: {date}\n{pdf_data.id_no}")
+                    subject_paragraph = document.add_paragraph()
+                    run = subject_paragraph.add_run(f"Date: {date}\n{pdf_data.id_no}")
+                    run.font.size = Pt(12)  # Adjust font size as needed
+                    run.font.bold = False
+                    run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                    subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+
+                if pdf_data.designation:
+                    document.add_paragraph(f"To,\n{pdf_data.designation}\n{pdf_data.institution_name}\n{pdf_data.address}")
+                else:
+                    document.add_paragraph(f"To,\n{pdf_data.institution_name}\n{pdf_data.address}")
+
+                subject_paragraph = document.add_paragraph()
+                run = subject_paragraph.add_run(f"quotation and price schedule")
+                run.font.size = Pt(14)  # Adjust font size as needed
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+                subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+                body_text = (
+                    
+                    "Having examined the Sealed Quotation (SQ) documents, we the undersigned, offer supply and delivery of "
+                    f"{pdf_data.subject} in conformity with the said SQ documents for the sum of or "
+                    f"such other sums {vats_amt}. (In Words {vat_words}) as may be ascertained in accordance with the Schedule of "
+                    "Prices attached herewith and made part of this SQ.\n"
+                    "We undertake, if our SQ is accepted, to deliver the goods in accordance with the delivery schedule specified "
+                    "in the Schedule of Requirements.\n"
+                    "If our SQ is accepted, we will obtain the guarantee of bank if mentioned in contract due performance of the Contract, in the form prescribed by the Purchaser.\n"
+                    f"We agree to abide by this SQ for a Period of {pdf_data.bidvaliditydays} days from the date fixed for SQ opening it shall remain "
+                    "binding upon us and may be accepted at any time before the expiration of that period.\n"
+                    "Until a formal Contract is prepared and executed, this SQ, together with your written acceptance thereof "
+                    "and your notification of award, shall constitute a binding Contract between us.\n"
+                    "We understand that you are not bound to accept the lowest or any SQ you may receive.\n"
+                    f"Dated this  {pdf_data.datedthis}"
+                    
+                )
+
+                document.add_paragraph(body_text)
+
+                 # Add bidder information
+                document.add_paragraph(f"Name: {pdf_data.proprietor_name}")
+                document.add_paragraph(f"In the capacity of: {pdf_data.ourdesignation}")
+                document.add_paragraph("Signed")
+
+                # Add signature if available
+                if pdf_data.signature:
+                    signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                    document.add_picture(signature_path, width=Pt(150))
+
+                # Add company information
+                document.add_paragraph("Duly authorized to sign the bid for & on behalf of: Perina medical suppliers ")
+                document.add_paragraph(f"Date: {pdf_data.date}")
+
+
+                
+                document.add_page_break()
+            
+
+            # Prepare response
+            buffer = BytesIO()
+            document.save(buffer)
+            buffer.seek(0)
+
+            response = HttpResponse(buffer, content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            response['Content-Disposition'] = 'attachment; filename=self_declaration.docx'
+            return response
 
 
 
@@ -990,7 +1736,7 @@ def generate_priceschedule(request):
                 canvas.restoreState()
 
             # Add "Price Schedule for Goods" heading
-            heading = Paragraph(f"<u>Price Schedule for Goods</u> <br/><br/> Name of bidder : {pdf_data.institutionname}", centered_heading_style)
+            heading = Paragraph(f"<u>Price Schedule for Goods</u> <br/><br/> Name of bidder : {pdf_data.institution_name}", centered_heading_style)
             story.append(heading)
             story.append(Spacer(1, 20))
 
@@ -1071,6 +1817,105 @@ def generate_priceschedule(request):
         pricescheduleform_form = pricescheduleform()
 
     return render(request, 'pdfgenerator/priceschedule.html', {'pricescheduleform_form': pricescheduleform_form})
+
+
+
+def upload(request):
+    if request.method == 'POST':
+        quotation_form = quotationform(request.POST, request.FILES)
+        if quotation_form.is_valid():
+            pdf_data = quotation_form.save()
+            buffer = BytesIO()
+            styles = getSampleStyleSheet()
+            width, height = A4
+            story = []
+
+            # Add PDF content (address, table, etc.)
+            story.append(Paragraph("Quotation Generated", styles['Title']))
+
+            # Load and Process Excel Data
+            if pdf_data.excel:
+                excel_path = os.path.join(settings.MEDIA_ROOT, pdf_data.excel.name)
+                data = pd.read_excel(excel_path, engine='openpyxl')
+                rows = data.iloc[:, 0].tolist()  # Assuming first column for rows
+
+            # Generate PDF
+            doc = SimpleDocTemplate(buffer, pagesize=A4)
+            doc.build(story)
+
+            buffer.seek(0)
+            response = HttpResponse(buffer, content_type='application/pdf')
+            response['Content-Disposition'] = 'attachment; filename="quotation.pdf"'
+
+            # Pass context to template (for upload section)
+            return redirect('upload_pdf', quotation_id=pdf_data.id)
+    else:
+        quotation_form = quotationform()
+
+    return render(request, 'pdfgenerator/quotation.html', {'quotation_form': quotation_form})
+
+# def generate_word(request):
+#     if request.method == 'POST':
+#         pdfdata_form = PDFForm(request.POST, request.FILES)
+#         if pdfdata_form.is_valid():
+#             pdf_data = pdfdata_form.save()
+#             document = Document()
+
+#             # Helper function to validate and add image
+#             def add_valid_picture(doc, path, width):
+#                 try:
+#                     with Image.open(path) as img:
+#                         img.verify()  # Validate image
+#                         doc.add_picture(path, width=width)
+#                 except (IOError, OSError) as e:
+#                     print(f"Invalid image or file not found: {path}. Error: {e}")
+
+#             # Add letterhead image
+#             if pdf_data.letterhead:
+#                 letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+#                 add_valid_picture(document, letterhead_path, width=Inches(6.0))
+
+#             # Add text details
+#             if pdf_data.date:
+#                 date = pdf_data.date.strftime("%Y-%m-%d")
+#                 document.add_paragraph(f"Date: {date}\n{pdf_data.id_no}\n{pdf_data.nameofcontract}")
+
+#             if pdf_data.designation:
+#                 document.add_paragraph(f"To,\n{pdf_data.designation}\n{pdf_data.institution_name}\n{pdf_data.address}")
+#             else:
+#                 document.add_paragraph(f"To,\n{pdf_data.institution_name}\n{pdf_data.address}")
+
+#             document.add_paragraph("\n<u><b>Self Declaration Letter</b></u>", style='Title')
+
+#             body_text = (
+#                 "Dear Sir/Madam,\n"
+#                 "This refers to you that related to the above subject with respect to the procurement procedure. "
+#                 "We Sharvil Energy Pvt. Ltd. declare that we are eligible to participate in the bidding process. "
+#                 "We have no conflict of interest and no pending litigation.\n\nThank you,\nSincerely yours," 
+#             )
+#             document.add_paragraph(body_text)
+
+#             # Add signature image
+#             if pdf_data.signature:
+#                 signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+#                 add_valid_picture(document, signature_path, width=Inches(2.0))
+#                 document.add_paragraph(f"{pdf_data.proprietor_name}\n{pdf_data.ourdesignation}")
+
+#             # Add footer image
+#             if pdf_data.footer:
+#                 footer_path = os.path.join(settings.MEDIA_ROOT, pdf_data.footer.name)
+#                 add_valid_picture(document, footer_path, width=Inches(6.0))
+
+#             # Prepare response
+#             buffer = BytesIO()
+#             document.save(buffer)
+#             buffer.seek(0)
+#             response = HttpResponse(buffer, content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+#             response['Content-Disposition'] = 'attachment; filename=self_declaration.docx'
+#             return response
+
+
+
 
 def generate_quotation(request):
     if request.method == 'POST':
@@ -1156,14 +2001,31 @@ def generate_quotation(request):
                 ]))
                 story.append(table)
 
+            # story.append(Paragraph(f"Name:{pdf_data.propriter_name}"))
+            story.append(Paragraph(f"In the capacity of :{pdf_data.ourdesignation}"))
+            story.drawString("signed")
+            # Add signature at a specific position if available
+            if pdf_data.signature:
+                signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                story.drawImage(signature_path, 50, y_position - 80, width=300, height=80)
+                y_position -= 100  # Adjust y position below the signature image
+            else:
+                y_position -=100  # Adjust y position below the signature image
+
+            line_y_position = y_position - 5  # Adjust this value for spacing below the image
+            story.setLineWidth(1)  # Set the line width if needed
+            story.line(40, line_y_position, width-300, line_y_position)
+
+            story.drawString( "Duly authorized to sign the bid for & on behalf of: Perina medical suppliers ")
+            story.drawString(f"Date:{pdf_data.date}")
 
             # Add a spacer after the table
-            story.append(Spacer(1, 10))
-            story.append(Paragraph(f"In Words :{vat_words}"))
-            story.append(Paragraph(f"Notes*:{pdf_data.notes}"))
+            # story.append(Spacer(1, 10))
+            # story.append(Paragraph(f"In Words :{vat_words}"))
+            # story.append(Paragraph(f"Notes*:{pdf_data.notes}"))
 
-            # Add signature section
-            story.append(Spacer(1, 20))
+            # # Add signature section
+            # story.append(Spacer(1, 20))
             if pdf_data.signature:
                 signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
                 story.append(Image(signature_path, width=100, height=50, hAlign='LEFT'))
@@ -1187,5 +2049,510 @@ def generate_quotation(request):
         quotation_form = quotationform()
 
     return render(request, 'pdfgenerator/quotation.html', {'quotation_form': quotation_form})
+    
 
 
+# word generation of quotation
+
+def quotation_docs(request):
+    if request.method == 'POST':
+        quotation_form = quotationform(request.POST, request.FILES)
+        if quotation_form.is_valid():
+            pdf_data = quotation_form.save()
+            document = Document()
+            # Helper function to validate and add an image
+            def add_valid_picture(doc, path, width):
+                try:
+                    if os.path.exists(path):
+                        doc.add_picture(path, width=width)
+                    else:
+                        print(f"File not found: {path}")
+                except Exception as e:
+                    print(f"Error adding image: {e}")
+
+            # Add letterhead image
+            document.sections[0].left_margin = Inches(0.5)
+            document.sections[0].top_margin = Inches(0.2)
+            if pdf_data.letterhead:
+                letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                add_valid_picture(document, letterhead_path, width=Inches(8))
+
+            # Add recipient address
+            address = f"""To,\n {pdf_data.institution_name or ""}\n{pdf_data.address or ""}"""
+            document.add_paragraph(address)
+
+            # Add subject
+            subject_paragraph = document.add_paragraph()
+            run = subject_paragraph.add_run(f"Subject: {pdf_data.subject}")
+            run.font.size = Pt(14)  # Adjust font size as needed
+            run.font.bold = True
+            run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+            subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+            # Add introductory text
+            document.add_paragraph(f"Dear Sir/Madam,\n{pdf_data.paragraph}")
+
+            # Add table content from Excel
+            if pdf_data.excel:
+                excel_path = os.path.join(settings.MEDIA_ROOT, pdf_data.excel.name)
+                data = pd.read_excel(excel_path, engine='openpyxl').fillna("")
+                table = document.add_table(rows=1, cols=len(data.columns))
+                table.style = 'Table Grid'
+
+                # Add headers
+                for i, header in enumerate(data.columns):
+                    table.rows[0].cells[i].text = str(header)
+
+                # Add rows
+                for row in data.itertuples(index=False):
+                    table_row = table.add_row().cells
+                    for i, value in enumerate(row):
+                        table_row[i].text = str(value)
+
+            # Add totals and notes
+            document.add_paragraph(f"Total Amount (incl. VAT): {pdf_data.amount * 1.13}")
+            document.add_paragraph(f"Notes: {pdf_data.notes}")
+
+            
+            if pdf_data.signature:
+                signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                add_valid_picture(document, signature_path, width=Inches(2.0))
+            # document.add_paragraph(f"______________________\n{pdf_data.propritername}\n{pdf_data.designation}")
+
+            # Prepare response
+            buffer = BytesIO()
+            document.save(buffer)
+            buffer.seek(0)
+            return HttpResponse(
+                buffer,
+                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                headers={'Content-Disposition': 'attachment; filename="quotation.docx"'}
+            )
+    else:
+        quotation_form = quotationform()
+
+    return render(request, 'generatepdf/quotation.html', {'quotation_form': quotation_form})
+
+
+
+
+
+def generate_quotation2(request):
+    if request.method == 'POST':
+        quotation_form = quotationform(request.POST, request.FILES)
+        if quotation_form.is_valid():
+            pdf_data = quotation_form.save()
+            # p = canvas.Canvas(buffer, pagesize=A4)
+            buffer = BytesIO()
+            styles = getSampleStyleSheet()
+            centered_heading_style = styles['Heading3']
+            centered_heading_style.alignment = TA_CENTER
+            styles['BodyText'].fontSize = 10
+            styles['BodyText'].leading = 20
+            width, height = A4
+
+            # Prepare the content for the document
+            story = []
+
+            # Function to add header/footer
+            def add_header_footer(canvas, doc):
+                canvas.saveState()
+                if pdf_data.letterhead:
+                    letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                    canvas.drawImage(letterhead_path, 40, height - 100, width=500, height=80)
+                canvas.restoreState()
+
+            address = f"""
+                To,<br/>
+                {pdf_data.designation or ""}<br/>
+                {pdf_data.institution_name or ""}<br/>
+                {pdf_data.address or ""}<br/>
+                
+        """
+            story.append(Paragraph(address, styles['BodyText']))
+
+            story.append(Paragraph(f"<u><b>subject </b></u>:{pdf_data.subject}", styles['Heading3']))
+            story.append(Paragraph(f"Dear sir/madam<br/>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; {pdf_data.paragraph}", styles['BodyText']))
+
+
+            # Handle Excel table data
+            if pdf_data.excel:
+                excel_path = os.path.join(settings.MEDIA_ROOT, pdf_data.excel.name)
+                data = pd.read_excel(excel_path, engine='openpyxl')
+                data = data.where(pd.notnull(data), None)  # Handle NaN values
+                data_list = [data.columns.tolist()] + data.values.tolist()
+                vats_amt = (pdf_data.amount*1.13)
+                vat_words = rupee_format(int(vats_amt))
+                words = rupee_format(int(pdf_data.amount))
+                print("Formatted Words:", words)
+                # Prepare the table data with Paragraphs
+                table_data = [
+                    [Paragraph(str(cell) if cell else '', styles["BodyText"]) for cell in row]
+                    for row in data_list
+                ]
+
+                # Calculate column widths
+                # Calculate column widths dynamically
+                column_widths = calculate_column_widths(data, font_name="Helvetica", font_size=10)
+
+                # Normalize widths to fit within the page
+                available_width = width - 60  # Account for page margins
+                total_width = sum(column_widths)
+                if total_width > available_width:
+                    scaling_factor = available_width / total_width
+                    column_widths = [w * scaling_factor for w in column_widths]
+
+                # Prepare table data
+                table_data = [
+                    [Paragraph(str(cell) if cell else '', styles["BodyText"]) for cell in row]
+                    for row in data_list
+                ]
+
+                # Create table
+                table = Table(table_data, colWidths=column_widths)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ]))
+                story.append(table)
+
+            story.append(Paragraph(f"Name:{pdf_data.propriter_name}"))
+            story.append(Paragraph(50, y_position - 40, f"In the capacity of :{pdf_data.ourdesignation}"))
+            story.drawString(50, y_position - 60, "signed")
+            # Add signature at a specific position if available
+            if pdf_data.signature:
+                signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                story.drawImage(signature_path, 50, y_position - 80, width=300, height=80)
+                y_position -= 100  # Adjust y position below the signature image
+            else:
+                y_position -=100  # Adjust y position below the signature image
+
+            line_y_position = y_position - 5  # Adjust this value for spacing below the image
+            story.setLineWidth(1)  # Set the line width if needed
+            story.line(40, line_y_position, width-300, line_y_position)
+
+            story.drawString(50, y_position - 20, "Duly authorized to sign the bid for & on behalf of: Perina medical suppliers ")
+            story.drawString(50, y_position - 40, f"Date:{pdf_data.date}")
+
+            
+            if pdf_data.signature:
+                signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                story.append(Image(signature_path, width=100, height=50, hAlign='LEFT'))
+
+                story.append(Paragraph("Authorized Signature", styles["BodyText"]))
+            else:
+                story.append(Paragraph("Authorized Signature: ______________________", styles["BodyText"]))
+
+            doc = SimpleDocTemplate(
+                buffer, pagesize=A4,
+                rightMargin=30, leftMargin=30,
+                topMargin=100, bottomMargin=30
+            )
+            doc.build(story, onFirstPage=add_header_footer, onLaterPages=add_header_footer)
+
+            # Return the PDF as a response
+            buffer.seek(0)
+            return HttpResponse(buffer, content_type='application/pdf', headers={'Content-Disposition': f'attachment; filename="finesurgical.pdf"'})
+
+    else:
+        quotation_form = quotationform()
+
+    return render(request, 'pdfgenerator/quotation2.html', {'quotation_form': quotation_form})
+    
+
+
+# word generation of quotation
+
+def quotation_docs2(request):
+    if request.method == 'POST':
+        quotation_form = quotationform(request.POST, request.FILES)
+        if quotation_form.is_valid():
+            pdf_data = quotation_form.save()
+            document = Document()
+            # Helper function to validate and add an image
+            def add_valid_picture(doc, path, width):
+                try:
+                    if os.path.exists(path):
+                        doc.add_picture(path, width=width)
+                    else:
+                        print(f"File not found: {path}")
+                except Exception as e:
+                    print(f"Error adding image: {e}")
+
+            # Add letterhead image
+            document.sections[0].left_margin = Inches(0.5)
+            document.sections[0].top_margin = Inches(0.2)
+            if pdf_data.letterhead:
+                letterhead_path = os.path.join(settings.MEDIA_ROOT, pdf_data.letterhead.name)
+                add_valid_picture(document, letterhead_path, width=Inches(8))
+
+            # Add recipient address
+            address = f"""To,\n {pdf_data.institution_name or ""}\n{pdf_data.address or ""}"""
+            document.add_paragraph(address)
+
+            # Add subject
+            subject_paragraph = document.add_paragraph()
+            run = subject_paragraph.add_run(f"Subject: {pdf_data.subject}")
+            run.font.size = Pt(14)  # Adjust font size as needed
+            run.font.bold = True
+            run.font.color.rgb = RGBColor(0, 0, 0)  # Set font color to black
+            subject_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+            # Add introductory text
+            document.add_paragraph(f"Dear Sir/Madam,\n{pdf_data.paragraph}")
+
+            # Add table content from Excel
+            if pdf_data.excel:
+                excel_path = os.path.join(settings.MEDIA_ROOT, pdf_data.excel.name)
+                data = pd.read_excel(excel_path, engine='openpyxl').fillna("")
+                table = document.add_table(rows=1, cols=len(data.columns))
+                table.style = 'Table Grid'
+
+                # Add headers
+                for i, header in enumerate(data.columns):
+                    table.rows[0].cells[i].text = str(header)
+
+                # Add rows
+                for row in data.itertuples(index=False):
+                    table_row = table.add_row().cells
+                    for i, value in enumerate(row):
+                        table_row[i].text = str(value)
+
+            # Add totals and notes
+            document.add_paragraph(f"Total Amount (incl. VAT): {pdf_data.amount * 1.13}")
+            document.add_paragraph(f"Notes: {pdf_data.notes}")
+
+            
+            if pdf_data.signature:
+                signature_path = os.path.join(settings.MEDIA_ROOT, pdf_data.signature.name)
+                add_valid_picture(document, signature_path, width=Inches(2.0))
+            # document.add_paragraph(f"______________________\n{pdf_data.propritername}\n{pdf_data.designation}")
+
+            # Prepare response
+            buffer = BytesIO()
+            document.save(buffer)
+            buffer.seek(0)
+            return HttpResponse(
+                buffer,
+                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                headers={'Content-Disposition': 'attachment; filename="quotation.docx"'}
+            )
+    else:
+        quotation_form = quotationform()
+
+    return render(request, 'generatepdf/quotation2.html', {'quotation_form': quotation_form})
+
+
+
+
+def upload_pdfs(request, quotation_id):
+    quotation = get_object_or_404(generatequotation, id=quotation_id)
+    
+    # Extract Excel data rows for uploading PDFs
+    excel_path = os.path.join(settings.MEDIA_ROOT, quotation.excel.name)
+    data = pd.read_excel(excel_path, engine='openpyxl')
+    rows = data.iloc[:, 1].tolist()  # Assuming first column holds row titles
+    rows = rows[:-3]  # Get the last 3 rows
+
+    if request.method == 'POST':
+        # Upload Financial Docs1 and BOQ
+        financial_docs = request.FILES.get('financial_docs')
+        boq_docs = request.FILES.get('boq_docs')
+        vat_docs = request.FILES.get('vat_docs')  # VAT is uploaded once
+
+        # Track uploaded files
+        uploaded_files = []
+        
+        # Save uploaded files
+        if financial_docs:
+            uploaded_files.append(UploadedFile.objects.create(
+                quotation=quotation,
+                file=financial_docs,
+                file_type='Financial Docs'
+            ))
+        if boq_docs:
+            uploaded_files.append(UploadedFile.objects.create(
+                quotation=quotation,
+                file=boq_docs,
+                file_type='BOQ'
+            ))
+        if vat_docs:
+            vat_instance = UploadedFile.objects.create(
+                quotation=quotation,
+                file=vat_docs,
+                file_type='VAT'
+            )
+            uploaded_files.append(vat_instance)
+        
+        # Upload files for each row
+        for row in rows:
+            print(f"Row: {row}")
+            catalogue_file = request.FILES.get(f'catalogue_{row}')
+            print(f"Catalogue file: {catalogue_file}")
+            ce_file = request.FILES.get(f'ce_{row}')
+            print(f"CE file: {ce_file}")
+            iso_file = request.FILES.get(f'iso_{row}')
+            print(f"ISO file: {iso_file}")
+            if catalogue_file:
+                try:
+                    uploaded_files.append(UploadedFile.objects.create(
+                        quotation=quotation,
+                        file=catalogue_file,
+                        row_name=row,
+                        file_type='Catalogue'
+                    ))
+                except Exception as e:
+                    print(f"Error uploading file {catalogue_file.name}: {e}")
+
+            if ce_file:
+                try:
+                    uploaded_files.append(UploadedFile.objects.create(
+                        quotation=quotation,
+                        file=ce_file,
+                        row_name=row,
+                        file_type='CE'
+                    ))
+                except Exception as e:
+                    print(f"Error uploading file {ce_file.name}: {e}")
+            
+
+            if iso_file:
+                try:
+                    uploaded_files.append(UploadedFile.objects.create(
+                        quotation=quotation,
+                        file=iso_file,
+                        row_name=row,
+                        file_type='ISO'
+                    ))
+                except Exception as e:
+                    print(f"Error uploading file {iso_file.name}: {e}")
+            
+
+        # Merge all PDFs
+        merger = PdfMerger()
+        
+        for uploaded_file in uploaded_files:
+            file_path = uploaded_file.file.path
+            print(f"Merging file: {file_path}")
+            merger.append(file_path)
+            # except Exception as e:
+                # print(f"Error merging file {uploaded_file.file.name}: {e}")
+        
+        # Append VAT doc at the end (if not already merged)
+        if vat_docs and vat_instance.file.path not in merger.pages:
+            merger.append(vat_instance.file.path)
+
+        # Save merged PDF
+        buffer = BytesIO()
+        merger.write(buffer)
+        merger.close()
+        
+        merged_file = ContentFile(buffer.getvalue(), 'final_quotation.pdf')
+        quotation.merged_pdf.save('quotation_merged.pdf', merged_file)
+
+        # Set the content type and disposition headers for download
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename=final_quotation.pdf'
+        return response
+
+    return render(request, 'pdfgenerator/upload.html', {
+        'quotation': quotation,
+        'excel_data': rows
+    })
+
+
+
+# def upload_pdfs(request, quotation_id):
+#     quotation = get_object_or_404(generatequotation, id=quotation_id)
+#     excel_path = os.path.join(settings.MEDIA_ROOT, quotation.excel.name)
+#     data = pd.read_excel(excel_path, engine='openpyxl')
+#     rows = data.iloc[:, 1].tolist()[:-3]  # Extract rows (excluding last 3)
+
+#     if request.method == 'POST':
+#         errors = []
+        
+#         # Handle file uploads
+#         handle_file_uploads(request, quotation, rows, errors)
+
+#         # Proceed to PDF merge after upload
+#         return merge_uploaded_pdfs(quotation, errors)
+
+#     return render(request, 'pdfgenerator/upload.html', {
+#         'quotation': quotation,
+#         'excel_data': rows
+#     })
+
+
+# # Function to handle file uploads
+# def handle_file_uploads(request, quotation, rows, errors):
+#     # Upload common files (Financial, BOQ, VAT)
+#     file_mapping = {
+#         'financial_docs': 'Financial Docs',
+#         'boq_docs': 'BOQ',
+#         'vat_docs': 'VAT'
+#     }
+
+#     for field, file_type in file_mapping.items():
+#         uploaded_file = request.FILES.get(field)
+#         if uploaded_file:
+#             try:
+#                 UploadedFile.objects.create(
+#                     quotation=quotation,
+#                     file=uploaded_file,
+#                     file_type=file_type
+#                 )
+#             except Exception as e:
+#                 errors.append(f"Failed to upload {file_type}: {str(e)}")
+
+#     # Upload row-specific files (Catalogue, CE, ISO)
+#     for row in rows:
+#         for prefix, file_type in [('catalogue', 'Catalogue'), ('ce', 'CE'), ('iso', 'ISO')]:
+#             uploaded_file = request.FILES.get(f'{prefix}_{row}')
+#             if uploaded_file:
+#                 try:
+#                     UploadedFile.objects.create(
+#                         quotation=quotation,
+#                         file=uploaded_file,
+#                         row_name=row,
+#                         file_type=file_type
+#                     )
+#                 except Exception as e:
+#                     errors.append(f"Failed to upload {file_type} for {row}: {str(e)}")
+
+
+# # Function to merge PDFs
+# def merge_uploaded_pdfs(quotation, errors):
+#     uploaded_files = UploadedFile.objects.filter(quotation=quotation).order_by('file_type', 'uploaded_at')
+
+#     merger = PdfMerger()
+#     merged_files = set()
+
+#     for uploaded_file in uploaded_files:
+#         try:
+#             file_path = uploaded_file.file.path
+#             if uploaded_file.file_type == 'VAT' and file_path in merged_files:
+#                 continue  # Prevent VAT duplication
+#             merger.append(file_path)
+#             merged_files.add(file_path)
+#         except Exception as e:
+#             errors.append(f"Failed to merge {uploaded_file.file_type}: {str(e)}")
+
+#     buffer = BytesIO()
+#     merger.write(buffer)
+#     merger.close()
+
+#     # Save merged PDF to the quotation
+#     merged_file = ContentFile(buffer.getvalue(), 'final_quotation.pdf')
+#     quotation.merged_pdf.save('quotation_merged.pdf', merged_file)
+
+#     # Print errors if any
+#     if errors:
+#         for error in errors:
+#             print(error)
+
+#     return HttpResponse(buffer.getvalue(), content_type='application/pdf')

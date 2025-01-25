@@ -1,0 +1,17 @@
+
+<html lang="en">
+    {% extends "pdfgenerator/basic.html" %}
+
+    {% block body %}
+<body>
+    <h2>hello</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ pricescheduleform_form.as_p }}
+        <button type="submit" formaction="{% url 'temp_priceschedule' %}">Generate priceschedule pdf</button>
+        {% comment %} <button type="submit" formaction="{% url 'temp_pricescheduledocs' %}">generate price schedule docs  </button> {% endcomment %}
+        <button type="submit" formaction="{% url 'upload' %}">upload pdfs</button>
+    </form>
+</body>
+{% endblock  %}
+</html>                                                                                                    

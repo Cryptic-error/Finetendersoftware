@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+{% extends "pdfgenerator/basic.html" %}
+
+{% block body %}
+<body>
+    <h2>Generate Tender Document with footer </h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ pdfdata_form.as_p }}
+        <button type="submit" formaction="{% url 'temp_generate_pdf' %}">Generate PDF of Content</button>
+        <button type="submit" formaction="{% url 'temp_generate_word' %}">Generate Word of Content</button>
+    </form>
+
+    <a href="{% url 'temp_priceschedule' %}">
+        <button type="button">Price Schedule</button>
+    </a>
+    
+    <a href="{% url 'temp_quotation' %}">
+        <button type="button">Quotation</button>
+    </a>
+</body>
+
+{% endblock  %}
+</html>

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+    {% extends "pdfgenerator/basic.html" %}
+
+    {% block body %}
+<body>
+    <h2>quotation</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ quotation_form.as_p }}
+        <button type="submit" formaction="{% url 'temp_quotation' %}">Generate quotation pdf</button>
+        <button type="submit" formaction="{% url 'temp_quotation_docs' %}">Generate Word of Content</button>
+    </form>
+</body>
+{% endblock  %}
+</html>                                                                                                    

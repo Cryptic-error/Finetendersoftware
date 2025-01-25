@@ -19,7 +19,7 @@ class PDFForm(forms.ModelForm):
 
     class Meta:
         model = PDFData
-        fields = ['date', 'designation','ourdesignation','id_no', 'institution_name', 'days','bidvaliditydays','address', 'subject','attornity_name','attornity_designation','attornitysign','datedthis', 'project_name','nameofcontract', 'amount', 'proprietor_name', 'letterhead','signature','footer']
+        fields = ['date', 'designation','ourdesignation','id_no', 'institution_name', 'days','bidvaliditydays','address', 'subject','attornity_name','attornity_designation','attornitysign','datedthis', 'company_name','nameofcontract', 'amount', 'proprietor_name', 'letterhead','signature','footer']
 
 class quotationform(forms.ModelForm):
     
